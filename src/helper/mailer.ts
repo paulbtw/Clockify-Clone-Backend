@@ -1,37 +1,41 @@
 import nodemailer from "nodemailer";
+import Email from "email-templates";
+import path from "path";
 
-// const options = {
-//   auth: {
-//     api_key: process.env.SENDGRID_API_KEY,
-//   },
-// };
+// Make these env variables
 
-// const mailer = nodemailer.createTransport(sgTransport(options));
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.ethereal.email",
-  port: 587,
-  auth: {
-    user: "darryl.carter@ethereal.email",
-    pass: "MDf1NdsXM1DkuuFaTj",
-  },
-});
-
-export const sendEmail = async (email: string, token: string) => {
-  let mail = {
-    from: "test@example.com",
-    to: email,
-    subject: "Verify your email",
-    text: `Hello, \n\nPlease verify your account by clicking the link: \nhttp://localhost:5000/auth/confirmation/${token} .\n`,
-  };
-
-  await transporter.sendMail(mail, (err, info) => {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log("Message sent: " + nodemailer.getTestMessageUrl(info));
-    }
+export const sendEmailWithTemplate = async (
+  email: string,
+  locals: { [key: string]: string },
+  template: string
+) => {
+  const mailOptions = new Email({
+    message: { from: "darryl.carter@ethereal.email" },
+    transport: {
+      host: "smtp.ethereal.email",
+      port: 587,
+      auth: {
+        user: "darryl.carter@ethereal.email",
+        pass: "MDf1NdsXM1DkuuFaTj",
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    },
+    textOnly: false,
+    send: true,
+    preview: false,
   });
 
+  await mailOptions
+    .send({
+      template: path.join(__dirname, "..", "emails", template),
+      message: { to: email },
+      locals: locals,
+    })
+    .then((info) => {
+      console.log(nodemailer.getTestMessageUrl(info));
+    })
+    .catch(console.error);
   return;
 };

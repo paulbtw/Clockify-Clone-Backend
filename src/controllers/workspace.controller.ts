@@ -1,20 +1,23 @@
 import { Request, Response, NextFunction } from "express";
-import { ErrorObject } from "../helper/error-handler";
+import { body, param, validationResult } from "express-validator";
 import { getRepository } from "typeorm";
+import { MembershipPermissions, Memberships } from "../entities/Memberships";
 import { Workspace } from "../entities/Workspace";
-import { Memberships } from "../entities/Memberships";
-import { Permissions } from "../entities/Permissions";
-import { TimeEntries } from "../entities/TimeEntries";
+import { validationHandler } from "../helper/error-handler";
 
+/**
+ * Get Workspace by id
+ * @route GET /workspaces/:workspaceId
+ */
 export const getWorkspaceById = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const workspaceId = req.params.workspaceId;
-  const userId = res.locals.userId;
-
   try {
+    const workspaceId = req.params.workspaceId;
+    const userId = req.user.id;
+
     const result = await getRepository(Workspace)
       .createQueryBuilder("workspace")
       .leftJoinAndSelect("workspace.members", "member")
@@ -30,14 +33,17 @@ export const getWorkspaceById = async (
   }
 };
 
+/**
+ * Get all workspaces with active membership
+ * @route GET /workspaces
+ */
 export const getWorkspaces = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const userId = res.locals.userId;
-
   try {
+    const userId = req.user.id;
     // Find in relations
     const result = await getRepository(Workspace)
       .createQueryBuilder("workspace")
@@ -51,46 +57,35 @@ export const getWorkspaces = async (
   }
 };
 
-export const getWorkspacePermssionsWithUserId = async (
+/**
+ * Create a new Workspace
+ * @route POST /workspaces
+ */
+export const postCreateNewWorkspace = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const userId = req.params.userId;
-  const workspaceId = req.params.workspaceId;
-  const userIdToken = res.locals.userId;
-
   try {
-    if (userId != userIdToken) {
-      const error: ErrorObject = new Error("Unauthorized.");
-      error.statusCode = 401;
-      throw error;
-    }
+    await body("name", "Name has to be a string").isString().run(req);
 
-    const result = await getRepository(Permissions).find({
-      where: { userId: userId, workspaceId: workspaceId },
-    });
+    validationHandler(validationResult(req));
 
-    res.status(200).json(result);
-  } catch (err) {
-    next(err);
-  }
-};
+    const { name } = req.body;
 
-export const getTimeEntriesForUserInWorkspace = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const workspaceId = req.params.workspaceId;
-  const userIdToken = res.locals.userId;
+    const newWorkspace = new Workspace();
+    newWorkspace.name = name;
 
-  try {
-    const timeEntries = await getRepository(TimeEntries).find({
-      where: { userId: userIdToken, workspaceId: workspaceId },
-    });
+    const newMembership = new Memberships();
+    newMembership.usersId = req.user.id;
+    newMembership.workspaceId = newWorkspace.id;
+    newMembership.permissions = MembershipPermissions.WORKSPACE_OWN;
 
-    return res.status(200).json({ timeEntriesList: timeEntries });
+    newWorkspace.members = [newMembership];
+
+    const savedWorkspace = await getRepository(Workspace).save(newWorkspace);
+
+    return res.status(201).json({ success: true, savedWorkspace });
   } catch (err) {
     next(err);
   }

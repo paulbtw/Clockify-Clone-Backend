@@ -3,17 +3,25 @@ import { Workspace } from "./Workspace";
 import { User } from "./User";
 import { Base } from "./Base";
 
-enum MembershipStatus {
+export enum MembershipStatus {
   ACTIVE = "ACTIVE",
   INACTIVE = "INACTIVE",
+  PENDING = "PENDING",
 }
 
-enum MembershipType {
+export enum MembershipType {
   WORKSPACE = "WORKSPACE",
+}
+
+export enum MembershipPermissions {
+  WORKSPACE_OWN = "WORKSPACE_OWN",
+  WORKSPACE_ADMIN = "WORKSPACE_ADMIN",
+  WORKSPACE_USER = "WORKSPACE_USER",
 }
 
 @Entity()
 @Index(["usersId", "workspaceId"], { unique: true })
+@Index(["usersId", "workspaceId", "membershipStatus"])
 export class Memberships extends Base {
   @Column({
     type: "enum",
@@ -44,14 +52,26 @@ export class Memberships extends Base {
     currency: string;
   };
 
+  @Column({
+    type: "enum",
+    enum: MembershipPermissions,
+    nullable: false,
+    default: MembershipPermissions.WORKSPACE_USER,
+  })
+  public permissions!: MembershipPermissions;
+
   //Relations
-  @ManyToOne((type) => User, (user) => user.memberships)
+  @ManyToOne((type) => User, (user) => user.memberships, {
+    onDelete: "CASCADE",
+  })
   public users: User;
 
   @Column()
   public usersId!: string;
 
-  @ManyToOne((type) => Workspace, (workspace) => workspace.members)
+  @ManyToOne((type) => Workspace, (workspace) => workspace.members, {
+    onDelete: "CASCADE",
+  })
   public workspace: Workspace;
 
   @Column()

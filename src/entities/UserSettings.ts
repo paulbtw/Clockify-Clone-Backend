@@ -109,7 +109,9 @@ export class UserSettings extends Base {
   public darkTheme!: Boolean;
 
   // Relations
-  @OneToOne(() => User, (user) => user.userSettings)
+  @OneToOne(() => User, (user) => user.userSettings, {
+    onDelete: "CASCADE",
+  })
   @JoinColumn()
   public user!: User;
 }

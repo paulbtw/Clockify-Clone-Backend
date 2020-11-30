@@ -1,41 +1,18 @@
 import { Router } from "express";
-import { body } from "express-validator";
-import { isAuth } from "../middleware/isAuth";
 import {
   getWorkspaceById,
   getWorkspaces,
-  getWorkspacePermssionsWithUserId,
-  getTimeEntriesForUserInWorkspace,
+  postCreateNewWorkspace,
 } from "../controllers/workspace.controller";
-import {
-  postStartTimeEntry,
-  putStopTimeEntry,
-} from "../controllers/timeEntries.controller";
+import { hasSession } from "../middleware/hasSession";
+import { hasActiveMembership } from "../middleware/hasMembership";
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
-router.get("/:workspaceId", isAuth, getWorkspaceById);
+router.get("/", hasSession, getWorkspaces);
 
-router.get("/", isAuth, getWorkspaces);
+router.get("/:workspaceId", hasSession, hasActiveMembership, getWorkspaceById);
 
-router.get(
-  "/:workspaceId/users/:userId/permissions",
-  isAuth,
-  getWorkspacePermssionsWithUserId
-);
-
-router.post("/:workspaceId/timeEntries/full", isAuth, postStartTimeEntry);
-
-router.put(
-  "/:workspaceId/timeEntries/:timeEntriesId/stop",
-  isAuth,
-  putStopTimeEntry
-);
-
-router.get(
-  "/:workspaceId/timeEntries/full",
-  isAuth,
-  getTimeEntriesForUserInWorkspace
-);
+router.post("/", hasSession, postCreateNewWorkspace);
 
 export default router;

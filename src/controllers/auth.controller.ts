@@ -1,80 +1,88 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { ErrorObject } from "../helper/error-handler";
+import { ErrorObject, validationHandler } from "../helper/error-handler";
 import { getRepository } from "typeorm";
 import { User, UserStatus } from "../entities/User";
 import { Workspace } from "../entities/Workspace";
-import { Memberships } from "../entities/Memberships";
-import { Permissions, MembershipPermissions } from "../entities/Permissions";
-import { sendEmail } from "../helper/mailer";
-import { check, sanitize, validationResult } from "express-validator";
+import { MembershipPermissions, Memberships } from "../entities/Memberships";
+import { sendEmailWithTemplate } from "../helper/mailer";
+import { body, param, validationResult } from "express-validator";
 import passport from "passport";
 import { UserSettings } from "../entities/UserSettings";
+import { v4 as uuidv4 } from "uuid";
 
+/**
+ * Create a new local account
+ * @route POST /auth
+ */
 export const postSignup = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { email, password } = req.body;
-
-  let name = email.match(/^([^@]*)@/)[1];
-  name = name.charAt(0).toUpperCase() + name.slice(1);
-
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      const error = new Error("Validation failed.") as ErrorObject;
-      error.statusCode = 400;
-      error.data = errors.array();
-      throw error;
-    }
+    await body("email", "Email is not valid")
+      .isEmail()
+      .bail()
+      .normalizeEmail({ gmail_remove_dots: false })
+      .custom((enteredEmail, { req }) => {
+        return getRepository(User)
+          .findOne({ where: { email: enteredEmail } })
+          .then((user) => {
+            if (user) {
+              return Promise.reject("E-Mail address already registered!");
+            }
+          });
+      })
+      .run(req);
+    await body("password", "Password must be atleast 5 characters long")
+      .trim()
+      .isLength({ min: 5, max: 64 })
+      .run(req);
+
+    validationHandler(validationResult(req));
+
+    const { email, password } = req.body;
+    let name = email.match(/^([^@]*)@/)[1];
+    name = name.charAt(0).toUpperCase() + name.slice(1);
 
     const newUser = new User();
+    newUser.id = uuidv4();
     newUser.email = email;
     newUser.name = name;
     newUser.password = password;
     newUser.isVerifiedToken = crypto.randomBytes(16).toString("hex");
     newUser.status = UserStatus.PENDING_EMAIL_VERIFICATION;
-
-    const newUserSettings = new UserSettings();
-    newUserSettings.user = newUser;
+    newUser.userSettings = new UserSettings();
 
     const newWorkspace = new Workspace();
+    newWorkspace.id = uuidv4();
     newWorkspace.name = `${name}'s workspace`;
 
     newUser.defaultWorkspace = newWorkspace.id;
     newUser.activeWorkspace = newWorkspace.id;
 
     const newMembership = new Memberships();
+    newMembership.permissions = MembershipPermissions.WORKSPACE_OWN;
     newMembership.users = newUser;
     newMembership.workspace = newWorkspace;
 
-    const newPermission = new Permissions();
-    newPermission.user = newUser;
-    newPermission.workspace = newWorkspace;
-    newPermission.permission = MembershipPermissions.WORKSPACE_OWN;
+    newWorkspace.members = [newMembership];
 
-    const savedUser = await getRepository(User).save(newUser);
-    const savedWorkspace = await getRepository(Workspace).save(newWorkspace);
-    await getRepository(UserSettings).save(newUserSettings);
-    await getRepository(Memberships).save(newMembership);
-    await getRepository(Permissions).save(newPermission);
+    await getRepository(User).save(newUser);
+    await getRepository(Workspace).save(newWorkspace);
 
-    // Update default/active workspace for the new user
-    await getRepository(User)
-      .createQueryBuilder()
-      .update()
-      .set({
-        defaultWorkspace: savedWorkspace.id,
-        activeWorkspace: savedWorkspace.id,
-      })
-      .where("id = :id", { id: savedUser.id })
-      .execute();
+    // send Verification email
+    sendEmailWithTemplate(
+      newUser.email,
+      { name: newUser.name, token: newUser.isVerifiedToken },
+      "register"
+    );
 
-    // sent Verification email
-    sendEmail(newUser.email, newUser.isVerifiedToken);
+    req.logIn(newUser, function (err) {
+      console.log(err);
+    });
 
     const token = jwt.sign(
       {
@@ -93,23 +101,24 @@ export const postSignup = async (
   }
 };
 
+/**
+ * Login with local account
+ * @route POST /auth/token
+ */
 export const postLogin = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  await check("email", "Email is not valid").isEmail().run(req);
-  await check("password", "Password cannot be blank")
-    .isLength({ min: 1 })
+  await body("email", "Email is not valid")
+    .isEmail()
+    .normalizeEmail({ gmail_remove_dots: false })
     .run(req);
-  // eslint-disable-next-line @typescript-eslint/camelcase
-  await sanitize("email").normalizeEmail({ gmail_remove_dots: false }).run(req);
+  await body("password", "Password has to be atleast 5 characters long.")
+    .isLength({ min: 5 })
+    .run(req);
 
-  const errors = validationResult(req);
-
-  if (!errors.isEmpty()) {
-    return res.redirect("/login");
-  }
+  validationHandler(validationResult(req));
 
   passport.authenticate("local", (err: Error, user: User) => {
     try {
@@ -123,6 +132,11 @@ export const postLogin = async (
         error.statusCode = 401;
         throw error;
       }
+      // We use the callback, so we need to login manually to sessions!
+      // https://stackoverflow.com/questions/11277779
+      req.logIn(user, function (err) {
+        console.log(err);
+      });
       const token = jwt.sign(
         {
           email: user.email,
@@ -132,22 +146,30 @@ export const postLogin = async (
         { expiresIn: "7d" }
       );
 
-      return res.status(200).json({ token: token, user: user });
+      return res.status(200).json({ success: true });
     } catch (err) {
       next(err);
     }
   })(req, res, next);
 };
 
+/**
+ * Check a verify token
+ * @route GET /auth/verify/:verifyId
+ */
 export const getVerifyEmail = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const verifyId = req.params.verifyId;
-
   try {
+    await param("verifyId", "The Verify is not valid").exists().run(req);
+
+    validationHandler(validationResult(req));
+
     const userRepository = getRepository(User);
+
+    const verifyId = req.params.verifyId;
 
     const user = await userRepository.update(
       { isVerifiedToken: verifyId },
@@ -168,65 +190,82 @@ export const getVerifyEmail = async (
   }
 };
 
+/**
+ * Resend the verify email mail
+ * @route PUT /auth/resend/:userId
+ */
 export const putResendVerifyEmail = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const userId = req.params.userId;
-  const tokenUserId = res.locals.userId;
-
   try {
-    if (userId != tokenUserId) {
-      const error: ErrorObject = new Error("Unauthorized.");
-      error.statusCode = 401;
-      throw error;
-    }
+    await param("userId", "User ID is not valid")
+      .isUUID()
+      .equals(req.user.id)
+      .run(req);
 
-    const userRepository = getRepository(User);
+    validationHandler(validationResult(req));
+
+    const userId = req.params.userId;
 
     const verifyToken = crypto.randomBytes(16).toString("hex");
-    const user = await userRepository
+    const user = await getRepository(User)
       .createQueryBuilder()
       .update(User)
       .set({ isVerifiedToken: verifyToken })
       .where("id = :id AND isVerified = false", { id: userId })
-      .returning(["email"])
+      .returning(["email", "name"])
       .execute();
 
-    if (!user.affected) {
-      const error: ErrorObject = new Error("Unauthorized.");
-      error.statusCode = 401;
-      throw error;
+    if (user.affected) {
+      sendEmailWithTemplate(
+        user.raw[0].email,
+        { token: verifyToken, name: user.raw[0].name },
+        "verifyEmail"
+      );
     }
 
-    sendEmail(user.raw[0].email, verifyToken);
-
-    return res.status(201).json({ message: "Email resend" });
+    // If the user exists -> email
+    return res.status(201).json({ message: "Email resend." });
   } catch (err) {
     next(err);
   }
 };
 
+/**
+ * Change password
+ * @route PUT /auth/change
+ */
 export const putChangePassword = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { password, newPassword, confirmNewPassword } = req.body;
-  const userId = res.locals.userId;
   try {
-    if (newPassword !== confirmNewPassword) {
-      const error: ErrorObject = new Error("Passwords need to match.");
-      error.statusCode = 401;
-      throw error;
-    }
+    await body("password", "Password needs to be atleast 5 characters long")
+      .isLength({ min: 5, max: 64 })
+      .trim()
+      .run(req);
+    await body("newPassword", "Password needs to be atleast 5 characters long")
+      .isLength({ min: 5, max: 64 })
+      .trim()
+      .equals(req.body.password)
+      .withMessage("You already use this password")
+      .run(req);
+    await body("confirmNewPassword")
+      .isLength({ min: 5, max: 64 })
+      .withMessage("Password needs to be atleast 5 characters long.")
+      .trim()
+      .equals(req.body.password)
+      .withMessage("New passwords have to match.")
+      .run(req);
 
-    if (password === newPassword) {
-      const error: ErrorObject = new Error("You already use this password.");
-      error.statusCode = 401;
-      throw error;
-    }
+    validationHandler(validationResult(req));
+
+    const { password, newPassword } = req.body;
+    const userId = req.user.id;
+
     const userRepository = await getRepository(User);
     const user = await userRepository.findOne({
       where: { id: userId },
@@ -248,21 +287,22 @@ export const putChangePassword = async (
   }
 };
 
-export const postVerify = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  return res.status(200).json({ success: true });
-};
-
+/**
+ * Request password reset
+ * @route POST /auth/reset
+ */
 export const postRequestPasswordReset = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { email } = req.body;
   try {
+    await body("email", "Email has to be valid").isEmail().run(req);
+
+    validationHandler(validationResult(req));
+
+    const { email } = req.body;
+
     const user = await getRepository(User).findOne({ where: { email: email } });
     if (!user) {
       const error: ErrorObject = new Error("Email not found.");
@@ -287,19 +327,22 @@ export const postRequestPasswordReset = async (
   }
 };
 
+/**
+ * Check the password reset token
+ * @route GET /auth/reset/:passwordToken
+ */
 export const getPasswordReset = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { passwordToken } = req.params;
-
   try {
-    if (!passwordToken) {
-      const error: ErrorObject = new Error("Token not found.");
-      error.statusCode = 400;
-      throw error;
-    }
+    await param("passwordToken", "Password Token is requires")
+      .exists()
+      .run(req);
+    validationHandler(validationResult(req));
+
+    const { passwordToken } = req.params;
 
     const user = await getRepository(User).findOne({
       where: { passwordResetToken: passwordToken },
@@ -317,14 +360,31 @@ export const getPasswordReset = async (
   }
 };
 
+/**
+ * Change the password with the password reset token
+ * @route PUT /auth/reset/:passwordToken
+ */
 export const putPasswordReset = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { passwordToken } = req.params;
-  const { password, confirmPassword } = req.body;
   try {
+    await param("passwordToken").exists().run(req);
+    await body("password")
+      .isLength({ min: 5, max: 64 })
+      .withMessage("Password has to be atleast 5 characters long")
+      .trim()
+      .run(req);
+    await body("confirmPassword")
+      .equals(req.body.password)
+      .withMessage("Passwords have to match")
+      .run(req);
+    validationHandler(validationResult(req));
+
+    const { passwordToken } = req.params;
+    const { password } = req.body;
+
     const userRepository = await getRepository(User);
 
     const user = await userRepository.findOne({
@@ -333,12 +393,6 @@ export const putPasswordReset = async (
 
     if (!user) {
       const error: ErrorObject = new Error("Reset Token not valid.");
-      error.statusCode = 401;
-      throw error;
-    }
-
-    if (password !== confirmPassword) {
-      const error: ErrorObject = new Error("Passwords need to match.");
       error.statusCode = 401;
       throw error;
     }
@@ -359,4 +413,16 @@ export const putPasswordReset = async (
   } catch (err) {
     next(err);
   }
+};
+
+/**
+ * Logout the session
+ * @route POST /auth/logout
+ */
+export const postLogout = (req: Request, res: Response, next: NextFunction) => {
+  req.logOut();
+  req.session?.destroy((err) => {
+    console.log(err);
+  });
+  return res.status(201).json({ success: true });
 };

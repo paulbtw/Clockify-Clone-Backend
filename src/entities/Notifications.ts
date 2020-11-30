@@ -7,17 +7,22 @@ import {
   BeforeUpdate,
   ManyToOne,
 } from "typeorm";
+import {
+  NotificationInvite,
+  NotificationMessage,
+} from "../interfaces/Notifications";
 import { Base } from "./Base";
 import { User } from "./User";
 
-enum NotificationStatus {
+export enum NotificationStatus {
   UNREAD = "UNREAD",
   READ = "READ",
 }
 
-enum NotificationType {
+export enum NotificationType {
   USER_SETTINGS = "USER_SETTINGS",
   ACCOUNT_VERIFICATION = "ACCOUNT_VERIFICATION",
+  WORKSPACE_INVITATION = "WORKSPACE_INVITATION",
 }
 
 @Entity()
@@ -34,11 +39,7 @@ export class Notifications extends Base {
   public type!: NotificationType;
 
   @Column({ type: "jsonb", nullable: false })
-  public data!: {
-    message: string;
-    title: string;
-    type: NotificationType;
-  };
+  public data!: NotificationInvite | NotificationMessage;
 
   @Column()
   public userId!: string;

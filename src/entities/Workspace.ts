@@ -1,6 +1,5 @@
 import { Entity, Column, OneToMany } from "typeorm";
 import { Memberships } from "./Memberships";
-import { Permissions } from "./Permissions";
 import { Base } from "./Base";
 import { Client } from "./Client";
 import { Project } from "./Project";
@@ -122,21 +121,28 @@ export class Workspace extends Base {
   public onSubdomain!: boolean;
 
   //Relations
-  @OneToMany((type) => Memberships, (memberships) => memberships.workspace)
+  @OneToMany((type) => Memberships, (memberships) => memberships.workspace, {
+    cascade: true,
+  })
   public members: Memberships[];
 
-  @OneToMany((type) => Permissions, (permissions) => permissions.workspace)
-  public permissions: Permissions[];
-
-  @OneToMany((type) => Client, (client) => client.workspace)
+  @OneToMany((type) => Client, (client) => client.workspace, {
+    cascade: true,
+  })
   public clients: Client[];
 
-  @OneToMany((type) => Project, (project) => project.workspace)
+  @OneToMany((type) => Project, (project) => project.workspace, {
+    cascade: true,
+  })
   public projects: Project[];
 
-  @OneToMany((type) => Tag, (tag) => tag.workspace)
+  @OneToMany((type) => Tag, (tag) => tag.workspace, {
+    cascade: true,
+  })
   public tags: Tag[];
 
-  @OneToMany((type) => TimeEntries, (timeEntries) => timeEntries.workspace)
+  @OneToMany((type) => TimeEntries, (timeEntries) => timeEntries.workspace, {
+    cascade: true,
+  })
   public timeEntries: TimeEntries[];
 }

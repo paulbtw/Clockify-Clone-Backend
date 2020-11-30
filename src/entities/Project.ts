@@ -5,6 +5,7 @@ import { Client } from "./Client";
 import { Workspace } from "./Workspace";
 import { User } from "./User";
 import { TimeEntries } from "./TimeEntries";
+import { Tasks } from "./Task";
 
 @Entity()
 export class Project extends Base {
@@ -75,9 +76,14 @@ export class Project extends Base {
   @ManyToOne((type) => User, (user) => user.projects)
   public user: User;
 
-  @OneToMany((type) => Favorite, (favorites) => favorites.project)
+  @OneToMany((type) => Favorite, (favorites) => favorites.project, {
+    cascade: true,
+  })
   public favorites: Favorite[];
 
   @OneToMany((type) => TimeEntries, (timeEntries) => timeEntries.project)
   public timeEntries: TimeEntries[];
+
+  @OneToMany((type) => Tasks, (tasks) => tasks.project)
+  public tasks: Tasks[];
 }

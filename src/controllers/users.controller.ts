@@ -1,22 +1,27 @@
 import { Request, Response, NextFunction } from "express";
-import { ErrorObject } from "../helper/error-handler";
-import { getConnection, getManager, getRepository } from "typeorm";
+import { ErrorObject, validationHandler } from "../helper/error-handler";
+import { getRepository } from "typeorm";
 import { User } from "../entities/User";
+import { Notifications, NotificationStatus } from "../entities/Notifications";
+import { param, validationResult } from "express-validator";
 
+/**
+ * Get user info
+ * @route GET /users/:userId
+ */
 export const getUserById = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const userId = req.params.userId;
-  const tokenUserId = res.locals.userId;
-
   try {
-    if (userId !== tokenUserId) {
-      const error: ErrorObject = new Error("Unauthorized.");
-      error.statusCode = 401;
-      throw error;
-    }
+    await param("userId")
+      .equals(req.user.id)
+      .withMessage("Unauthorized")
+      .run(req);
+    validationHandler(validationResult(req));
+
+    const userId = req.params.userId;
 
     const result = await getRepository(User).findOne({
       where: { id: userId },
@@ -32,20 +37,23 @@ export const getUserById = async (
       ],
     });
     result.userSettings.id = undefined;
-    return res.status(200).json(result);
+    return res.status(200).json({ success: true, user: result });
   } catch (err) {
     next(err);
   }
 };
 
+/**
+ * Get user info
+ * @router GET /users
+ */
 export const getUserByToken = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const tokenUserId = res.locals.userId;
-
   try {
+    const tokenUserId = req.user.id;
     const result = await getRepository(User).findOne({
       where: { id: tokenUserId },
       relations: ["memberships", "userSettings"],
@@ -60,27 +68,106 @@ export const getUserByToken = async (
       ],
     });
     result.userSettings.id = undefined;
-    return res.status(200).json(result);
+    return res.status(200).json({ success: true, user: result });
   } catch (err) {
     next(err);
   }
 };
 
-export const changeColorForUser = async (
+/**
+ * Change the workspace
+ * @route POST /users/:userId/defaultWorkspace/:workspaceId
+ */
+export const postChangeDefaultWorkspace = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const userId = res.locals.userId;
+  try {
+    await param("userId")
+      .equals(req.user.id)
+      .withMessage("Unauthorized")
+      .run(req);
 
-  const user = await getManager()
-    .createQueryBuilder()
-    .update(User)
-    .set({
-      password: "1234test",
-    })
-    .where("id = :id", { id: userId })
-    .execute();
-  console.log(user);
-  return res.status(200).json({ success: true });
+    validationHandler(validationResult(req));
+
+    const userId = req.user.id;
+    const workspaceId = req.params.workspaceId;
+
+    await getRepository(User)
+      .createQueryBuilder()
+      .update()
+      .set({
+        defaultWorkspace: workspaceId,
+        activeWorkspace: workspaceId,
+      })
+      .where("id = :userId", { userId: userId })
+      .execute();
+
+    return res.status(201).json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Get unread notifications
+ * @route GET /users/:userId/notifications
+ */
+export const getNotificationsForUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    await param("userId", "Unauthorized").equals(req.user.id).run(req);
+
+    validationHandler(validationResult(req));
+
+    const userId = req.user.id;
+
+    const currentNotifications = await getRepository(Notifications).find({
+      where: { userId: userId, status: NotificationStatus.UNREAD },
+    });
+
+    return res
+      .status(200)
+      .json({ success: true, notifications: currentNotifications });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Mark notification as read
+ * @route PUT /users/:userId/markAsRead
+ */
+export const putMarkAsRead = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {};
+
+/**
+ * Delete current user
+ * @route DELETE /users/:userId/delete
+ */
+export const deleteUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user.id;
+
+    const deletedUser = await getRepository(User)
+      .createQueryBuilder()
+      .delete()
+      .where("id = :userId", { userId: userId })
+      .execute();
+
+    return res.status(201).json({ success: true });
+  } catch (err) {
+    next(err);
+  }
 };

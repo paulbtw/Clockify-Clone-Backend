@@ -38,14 +38,18 @@ export class TimeEntries extends Base {
   @Index()
   public userId!: string;
 
-  @ManyToOne((type) => User, (user) => user.timeEntries)
+  @ManyToOne((type) => User, (user) => user.timeEntries, {
+    onDelete: "CASCADE",
+  })
   public user: User;
 
   @Column({ nullable: false })
   @Index()
   public workspaceId!: string;
 
-  @ManyToOne((type) => Workspace, (workspace) => workspace.timeEntries)
+  @ManyToOne((type) => Workspace, (workspace) => workspace.timeEntries, {
+    onDelete: "SET NULL",
+  })
   public workspace: Workspace;
 
   @Column({ default: null })
@@ -59,7 +63,8 @@ export class TimeEntries extends Base {
   @BeforeUpdate()
   private insertDuration(): void {
     if (this.start && this.end) {
-      this.duration = this.end.getTime() - this.start.getTime();
+      this.duration =
+        new Date(this.end).getTime() - new Date(this.start).getTime();
     }
   }
 }

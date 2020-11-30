@@ -3,6 +3,33 @@ import { getRepository } from "typeorm";
 import { User } from "../entities/User";
 const LocalStrategy = require("passport-local").Strategy;
 
+passport.serializeUser((user: User, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser((id: string, done) => {
+  getRepository(User)
+    .findOne({
+      where: { id: id },
+      select: [
+        "id",
+        "name",
+        "email",
+        "defaultWorkspace",
+        "activeWorkspace",
+        "isVerified",
+        "status",
+        "profilePicture",
+      ],
+    })
+    .then((user) => {
+      done(null, user);
+    })
+    .catch((err) => {
+      done(new Error("Failed to deserialize user"));
+    });
+});
+
 passport.use(
   new LocalStrategy(
     { usernameField: "email" },
@@ -20,18 +47,3 @@ passport.use(
     }
   )
 );
-
-passport.serializeUser((user: any, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser((id: string, done) => {
-  getRepository(User)
-    .findOne({ where: { id: id } })
-    .then((user) => {
-      done(null, user);
-    })
-    .catch((err) => {
-      done(new Error("Failed to deserialize user"));
-    });
-});

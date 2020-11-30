@@ -1,10 +1,12 @@
 import { ConnectionOptions } from "typeorm";
+import { ENVIRONMENT, POSTGRES_DB_URL } from "./secrets";
 
-const startDir = process.env.NODE_ENV === "production" ? "dist" : "src";
+const startDir = ENVIRONMENT === "production" ? "dist" : "src";
 
-export const config: ConnectionOptions = {
+const config: ConnectionOptions = {
   type: "postgres",
-  url: process.env.DB_URL,
+  url: POSTGRES_DB_URL,
+  // dropSchema: ENVIRONMENT === "test" ? true : false,
   synchronize: true,
   entities: [
     `${startDir}/entities/Client{.ts,.js}`,
@@ -18,5 +20,9 @@ export const config: ConnectionOptions = {
     `${startDir}/entities/User{.ts,.js}`,
     `${startDir}/entities/Workspace{.ts,.js}`,
     `${startDir}/entities/UserSettings{.ts,.js}`,
+    `${startDir}/entities/Session{.ts,.js}`,
+    `${startDir}/entities/Task{.ts,.js}`,
   ],
 };
+
+export default config;

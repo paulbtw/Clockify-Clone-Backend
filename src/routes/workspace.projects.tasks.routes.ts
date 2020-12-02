@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
-  postCreateNewTaskInProject,
-  putEditTaskInProject,
+	postCreateNewTaskInProject,
+	putEditTaskInProject,
 } from "../controllers/workspace.projects.tasks.controller";
 import { hasActiveMembership } from "../middleware/hasMembership";
 import { hasSession } from "../middleware/hasSession";

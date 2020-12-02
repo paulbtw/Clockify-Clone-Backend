@@ -6,10 +6,10 @@ import { postInviteUsersToWorkspace } from "../controllers/workspace.users.contr
 const router = Router({ mergeParams: true });
 
 router.post(
-  "/users",
-  hasSession,
-  hasActiveMembership,
-  postInviteUsersToWorkspace
+	"/users",
+	hasSession,
+	hasActiveMembership,
+	postInviteUsersToWorkspace
 );
 
 export default router;

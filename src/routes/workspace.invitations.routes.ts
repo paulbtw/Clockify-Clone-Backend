@@ -5,9 +5,9 @@ import { hasSession } from "../middleware/hasSession";
 const router = Router({ mergeParams: true });
 
 router.put(
-  "/users/:userId/invitations",
-  hasSession,
-  putWorkspaceInvitationResponse
+	"/users/:userId/invitations",
+	hasSession,
+	putWorkspaceInvitationResponse
 );
 
 export default router;

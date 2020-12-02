@@ -10,27 +10,27 @@ import { validationHandler } from "../helper/error-handler";
  * @route GET /workspaces/:workspaceId
  */
 export const getWorkspaceById = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+	req: Request,
+	res: Response,
+	next: NextFunction
 ) => {
-  try {
-    const workspaceId = req.params.workspaceId;
-    const userId = req.user.id;
+	try {
+		const workspaceId = req.params.workspaceId;
+		const userId = req.user.id;
 
-    const result = await getRepository(Workspace)
-      .createQueryBuilder("workspace")
-      .leftJoinAndSelect("workspace.members", "member")
-      .where("member.usersId in (:userId) AND workspace.id = :workspaceId", {
-        userId: userId,
-        workspaceId: workspaceId,
-      })
-      .getOne();
+		const result = await getRepository(Workspace)
+			.createQueryBuilder("workspace")
+			.leftJoinAndSelect("workspace.members", "member")
+			.where("member.usersId in (:userId) AND workspace.id = :workspaceId", {
+				userId: userId,
+				workspaceId: workspaceId,
+			})
+			.getOne();
 
-    return res.status(200).json(result);
-  } catch (err) {
-    next(err);
-  }
+		return res.status(200).json(result);
+	} catch (err) {
+		next(err);
+	}
 };
 
 /**
@@ -38,23 +38,23 @@ export const getWorkspaceById = async (
  * @route GET /workspaces
  */
 export const getWorkspaces = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+	req: Request,
+	res: Response,
+	next: NextFunction
 ) => {
-  try {
-    const userId = req.user.id;
-    // Find in relations
-    const result = await getRepository(Workspace)
-      .createQueryBuilder("workspace")
-      .leftJoinAndSelect("workspace.members", "member")
-      .where("member.usersId in (:userId)", { userId: userId })
-      .getMany();
+	try {
+		const userId = req.user.id;
+		// Find in relations
+		const result = await getRepository(Workspace)
+			.createQueryBuilder("workspace")
+			.leftJoinAndSelect("workspace.members", "member")
+			.where("member.usersId in (:userId)", { userId: userId })
+			.getMany();
 
-    return res.status(200).json(result);
-  } catch (err) {
-    next(err);
-  }
+		return res.status(200).json(result);
+	} catch (err) {
+		next(err);
+	}
 };
 
 /**
@@ -62,31 +62,31 @@ export const getWorkspaces = async (
  * @route POST /workspaces
  */
 export const postCreateNewWorkspace = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+	req: Request,
+	res: Response,
+	next: NextFunction
 ) => {
-  try {
-    await body("name", "Name has to be a string").isString().run(req);
+	try {
+		await body("name", "Name has to be a string").isString().run(req);
 
-    validationHandler(validationResult(req));
+		validationHandler(validationResult(req));
 
-    const { name } = req.body;
+		const { name } = req.body;
 
-    const newWorkspace = new Workspace();
-    newWorkspace.name = name;
+		const newWorkspace = new Workspace();
+		newWorkspace.name = name;
 
-    const newMembership = new Memberships();
-    newMembership.usersId = req.user.id;
-    newMembership.workspaceId = newWorkspace.id;
-    newMembership.permissions = MembershipPermissions.WORKSPACE_OWN;
+		const newMembership = new Memberships();
+		newMembership.usersId = req.user.id;
+		newMembership.workspaceId = newWorkspace.id;
+		newMembership.permissions = MembershipPermissions.WORKSPACE_OWN;
 
-    newWorkspace.members = [newMembership];
+		newWorkspace.members = [newMembership];
 
-    const savedWorkspace = await getRepository(Workspace).save(newWorkspace);
+		const savedWorkspace = await getRepository(Workspace).save(newWorkspace);
 
-    return res.status(201).json({ success: true, savedWorkspace });
-  } catch (err) {
-    next(err);
-  }
+		return res.status(201).json({ success: true, savedWorkspace });
+	} catch (err) {
+		next(err);
+	}
 };

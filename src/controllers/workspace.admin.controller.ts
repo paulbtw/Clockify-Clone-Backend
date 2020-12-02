@@ -7,7 +7,7 @@ import { Workspace } from "../entities/Workspace";
  * @route GET /workspaces/:workspaceId/admin
  */
 export const getAdmin = (req: Request, res: Response, next: NextFunction) => {
-  return res.status(200).json({ success: true });
+	return res.status(200).json({ success: true });
 };
 
 /**
@@ -15,20 +15,20 @@ export const getAdmin = (req: Request, res: Response, next: NextFunction) => {
  * @route DELETE /workspaces/:workspaceId
  */
 export const deleteWorkspace = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+	req: Request,
+	res: Response,
+	next: NextFunction
 ) => {
-  try {
-    const workspaceId = req.params.workspaceId;
-    await getRepository(Workspace)
-      .createQueryBuilder()
-      .delete()
-      .where("id = :workspaceId", { workspaceId: workspaceId })
-      .execute();
+	try {
+		const workspaceId = req.params.workspaceId;
+		await getRepository(Workspace)
+			.createQueryBuilder()
+			.delete()
+			.where("id = :workspaceId", { workspaceId: workspaceId })
+			.execute();
 
-    return res.status(201).json({ success: true });
-  } catch (err) {
-    next(err);
-  }
+		return res.status(201).json({ success: true });
+	} catch (err) {
+		next(err);
+	}
 };

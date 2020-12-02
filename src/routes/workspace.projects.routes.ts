@@ -1,8 +1,8 @@
 import { Router } from "express";
 import {
-  getProjectInfo,
-  getProjectsInWorkspace,
-  postCreateNewProject,
+	getProjectInfo,
+	getProjectsInWorkspace,
+	postCreateNewProject,
 } from "../controllers/workspace.projects.controller";
 import { hasActiveMembership } from "../middleware/hasMembership";
 import { hasSession } from "../middleware/hasSession";

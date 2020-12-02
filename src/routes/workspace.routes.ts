@@ -1,8 +1,8 @@
 import { Router } from "express";
 import {
-  getWorkspaceById,
-  getWorkspaces,
-  postCreateNewWorkspace,
+	getWorkspaceById,
+	getWorkspaces,
+	postCreateNewWorkspace,
 } from "../controllers/workspace.controller";
 import { hasSession } from "../middleware/hasSession";
 import { hasActiveMembership } from "../middleware/hasMembership";

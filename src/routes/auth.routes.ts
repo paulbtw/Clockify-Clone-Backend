@@ -1,15 +1,15 @@
 import { Router } from "express";
 import { body } from "express-validator";
 import {
-  postSignup,
-  postLogin,
-  getVerifyEmail,
-  putResendVerifyEmail,
-  putChangePassword,
-  postRequestPasswordReset,
-  getPasswordReset,
-  putPasswordReset,
-  postLogout,
+	postSignup,
+	postLogin,
+	getVerifyEmail,
+	putResendVerifyEmail,
+	putChangePassword,
+	postRequestPasswordReset,
+	getPasswordReset,
+	putPasswordReset,
+	postLogout,
 } from "../controllers/auth.controller";
 import { getRepository } from "typeorm";
 import { User } from "../entities/User";

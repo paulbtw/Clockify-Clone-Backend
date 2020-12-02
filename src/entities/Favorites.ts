@@ -6,16 +6,16 @@ import { Project } from "./Project";
 @Entity()
 @Index(["userId", "projectId"], { unique: true })
 export class Favorite extends Base {
-  // Relations
-  @Column({ nullable: false })
-  public userId!: string;
+	// Relations
+	@Column({ nullable: false })
+	public userId!: string;
 
-  @ManyToOne((type) => User, (user) => user.favorites)
-  public user: User;
+	@ManyToOne((type) => User, (user) => user.favorites)
+	public user: User;
 
-  @Column({ nullable: false })
-  public projectId!: string;
+	@Column({ nullable: false })
+	public projectId!: string;
 
-  @ManyToOne((type) => Project, (project) => project.favorites)
-  public project: Project;
+	@ManyToOne((type) => Project, (project) => project.favorites)
+	public project: Project;
 }

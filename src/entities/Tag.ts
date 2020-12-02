@@ -7,24 +7,24 @@ import { Workspace } from "./Workspace";
 @Index(["userId", "workspaceId"])
 @Index(["name", "workspaceId"], { unique: true })
 export class Tag extends Base {
-  @Column({ type: "varchar", length: 100, default: "", nullable: false })
-  public name!: string;
+	@Column({ type: "varchar", length: 100, default: "", nullable: false })
+	public name!: string;
 
-  @Column({ nullable: false, default: false })
-  public archived!: boolean;
+	@Column({ nullable: false, default: false })
+	public archived!: boolean;
 
-  //Relations
-  @Column()
-  @Index()
-  public workspaceId!: string;
+	//Relations
+	@Column()
+	@Index()
+	public workspaceId!: string;
 
-  @ManyToOne((type) => Workspace, (workspace) => workspace.tags)
-  public workspace: Workspace;
+	@ManyToOne((type) => Workspace, (workspace) => workspace.tags)
+	public workspace: Workspace;
 
-  @Column()
-  @Index()
-  public userId!: string;
+	@Column()
+	@Index()
+	public userId!: string;
 
-  @ManyToOne((type) => User, (user) => user.tags)
-  public user: User;
+	@ManyToOne((type) => User, (user) => user.tags)
+	public user: User;
 }

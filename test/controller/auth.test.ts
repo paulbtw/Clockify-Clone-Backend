@@ -6,24 +6,24 @@ let Cookies;
 let server;
 
 beforeAll(async () => {
-  await connection.create();
+	await connection.create();
 
-  const mod = await require("../../src/app");
-  server = (mod as any).default;
+	const mod = await require("../../src/app");
+	server = (mod as any).default;
 });
 
 afterAll(async () => {
-  await connection.close();
+	await connection.close();
 });
 
 describe("Test auth controller", () => {
-  it("Register an account", async (done) => {
-    const res = await request(server)
-      .post("/auth")
-      .send({ email: "testuser2@aimbase.fun", password: "test1234" });
-    expect(res.status).toEqual(201);
-    done();
-  });
+	it("Register an account", async (done) => {
+		const res = await request(server)
+			.post("/auth")
+			.send({ email: "testuser2@aimbase.fun", password: "test1234" });
+		expect(res.status).toEqual(201);
+		done();
+	});
 });
 
 /**

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
-  deleteWorkspace,
-  getAdmin,
+	deleteWorkspace,
+	getAdmin,
 } from "../controllers/workspace.admin.controller";
 import { MembershipPermissions } from "../entities/Memberships";
 import { hasActiveMembership } from "../middleware/hasMembership";
@@ -11,22 +11,22 @@ import { hasWorkspaceRole } from "../middleware/hasWorkspaceRole";
 const router = Router({ mergeParams: true });
 
 router.get(
-  "/admin",
-  hasSession,
-  hasActiveMembership,
-  hasWorkspaceRole([
-    MembershipPermissions.WORKSPACE_ADMIN,
-    MembershipPermissions.WORKSPACE_OWN,
-  ]),
-  getAdmin
+	"/admin",
+	hasSession,
+	hasActiveMembership,
+	hasWorkspaceRole([
+		MembershipPermissions.WORKSPACE_ADMIN,
+		MembershipPermissions.WORKSPACE_OWN,
+	]),
+	getAdmin
 );
 
 router.delete(
-  "/",
-  hasSession,
-  hasActiveMembership,
-  hasWorkspaceRole([MembershipPermissions.WORKSPACE_OWN]),
-  deleteWorkspace
+	"/",
+	hasSession,
+	hasActiveMembership,
+	hasWorkspaceRole([MembershipPermissions.WORKSPACE_OWN]),
+	deleteWorkspace
 );
 
 export default router;

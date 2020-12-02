@@ -22,12 +22,12 @@ router.use("/workspaces/:workspaceId/tags", workspaceTagsRoutes);
 router.use("/workspaces/:workspaceId/users", workspaceUsersRoutes);
 router.use("/workspaces/:workspaceId/projects", workspaceProjectRoutes);
 router.use(
-  "/workspaces/:workspaceId/projects/:projectId/tasks",
-  workspaceProjectTaskRoutes
+	"/workspaces/:workspaceId/projects/:projectId/tasks",
+	workspaceProjectTaskRoutes
 );
 
 router.use("/", (req: Request, res: Response, next: NextFunction) => {
-  return res.status(404).json({ success: false, message: "Route not found" });
+	return res.status(404).json({ success: false, message: "Route not found" });
 });
 
 export default router;
